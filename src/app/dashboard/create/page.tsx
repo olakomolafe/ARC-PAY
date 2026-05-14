@@ -1,0 +1,339 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  ShoppingBag, 
+  DollarSign, 
+  FileText, 
+  Calendar,
+  ChevronRight,
+  Copy,
+  Check,
+  QrCode,
+  Link as LinkIcon,
+  ArrowLeft,
+  Loader2
+} from 'lucide-react';
+import Link from 'next/link';
+import { useAccount } from 'wagmi';
+import { supabase } from '@/lib/supabase';
+import { QRCodeSVG } from 'qrcode.react';
+
+export default function CreatePaymentPage() {
+  const { address } = useAccount();
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [createdId, setCreatedId] = useState<string | null>(null);
+  const [createdRequest, setCreatedRequest] = useState<any>(null);
+  const [isReceived, setIsReceived] = useState(false);
+
+  const [formData, setFormData] = useState({
+    productName: '',
+    description: '',
+    amount: '',
+    expiration: ''
+  });
+
+  useEffect(() => {
+    if (!createdRequest || !supabase) return;
+
+    // Listen for this specific request to be completed
+    const channel = supabase
+      .channel(`payment_${createdRequest.id}`)
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'payment_requests',
+        filter: `id=eq.${createdRequest.id}`
+      }, (payload) => {
+        if (payload.new.status === 'completed') {
+          setIsReceived(true);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [createdRequest]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!address) return;
+    if (!supabase) {
+      alert('Supabase is not configured. Please add your credentials to .env.local');
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('payment_requests')
+        .insert([
+          {
+            merchant_address: address,
+            product_name: formData.productName,
+            description: formData.description,
+            amount: parseFloat(formData.amount),
+            expiration_date: formData.expiration || null,
+            status: 'pending'
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setCreatedId(data.id);
+      setCreatedRequest(data);
+      setStep(2);
+    } catch (err) {
+      console.error('Error creating payment:', err);
+      alert('Failed to create payment request.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const paymentUrl = createdId ? `${window.location.origin}/pay/${createdId}` : '';
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(paymentUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      <div className="mb-10">
+        <Link href="/dashboard" className="inline-flex items-center gap-2 text-zinc-500 hover:text-white mb-6 transition-colors group">
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+          Back to Dashboard
+        </Link>
+        <h1 className="text-3xl font-bold tracking-tight">Create Payment Request</h1>
+        <p className="text-zinc-500">Generate a unique link to receive USDC payments on Arc Testnet.</p>
+      </div>
+
+      <AnimatePresence mode="wait">
+        {step === 1 ? (
+          <motion.div
+            key="step1"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="bg-zinc-900/30 border border-white/5 rounded-3xl p-8 lg:p-12"
+          >
+            <form onSubmit={handleSubmit} className="space-y-8">
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-bold text-zinc-400 mb-2 uppercase tracking-widest">Product / Service Name</label>
+                    <div className="relative">
+                      <ShoppingBag className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-600" />
+                      <input 
+                        required
+                        type="text"
+                        placeholder="e.g. Cyberpunk Asset Pack"
+                        className="w-full bg-black border border-white/10 rounded-2xl py-4 pl-12 pr-4 focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 outline-none transition-all"
+                        value={formData.productName}
+                        onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-zinc-400 mb-2 uppercase tracking-widest">Amount (USDC)</label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-600" />
+                      <input 
+                        required
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        className="w-full bg-black border border-white/10 rounded-2xl py-4 pl-12 pr-4 focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 outline-none transition-all"
+                        value={formData.amount}
+                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-bold text-zinc-400 mb-2 uppercase tracking-widest">Description (Optional)</label>
+                    <div className="relative">
+                      <FileText className="absolute left-4 top-4 w-5 h-5 text-zinc-600" />
+                      <textarea 
+                        rows={1}
+                        placeholder="Provide some context..."
+                        className="w-full bg-black border border-white/10 rounded-2xl py-4 pl-12 pr-4 focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 outline-none transition-all resize-none"
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-zinc-400 mb-2 uppercase tracking-widest">Expiration (Optional)</label>
+                    <div className="relative">
+                      <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-600" />
+                      <input 
+                        type="datetime-local"
+                        className="w-full bg-black border border-white/10 rounded-2xl py-4 pl-12 pr-4 focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 outline-none transition-all text-zinc-400"
+                        value={formData.expiration}
+                        onChange={(e) => setFormData({ ...formData, expiration: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-6 border-t border-white/5">
+                <button 
+                  disabled={loading}
+                  type="submit"
+                  className="w-full md:w-auto bg-emerald-500 text-black font-bold px-10 py-4 rounded-2xl hover:bg-emerald-400 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_30px_-5px_rgba(16,185,129,0.5)]"
+                >
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ChevronRight className="w-5 h-5" />}
+                  Generate Payment Request
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="step2"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="grid md:grid-cols-2 gap-8"
+          >
+            <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-8 lg:p-12 flex flex-col items-center justify-center text-center relative overflow-hidden">
+              <AnimatePresence mode="wait">
+                {isReceived ? (
+                  <motion.div 
+                    key="success"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex flex-col items-center py-6"
+                  >
+                    <div className="w-24 h-24 bg-emerald-500 rounded-full flex items-center justify-center mb-8 shadow-[0_0_50px_-5px_rgba(16,185,129,0.8)] animate-bounce">
+                      <Check className="w-12 h-12 text-black stroke-[4]" />
+                    </div>
+                    <h2 className="text-4xl font-black mb-4 bg-gradient-to-b from-white to-zinc-500 bg-clip-text text-transparent">PAYMENT RECEIVED!</h2>
+                    <p className="text-emerald-500 font-bold mb-8 uppercase tracking-[0.2em] text-sm">Arc Testnet Confirmed</p>
+                    <div className="px-6 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-500 font-mono text-xs">
+                       +{formData.amount} USDC
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div 
+                    key="waiting"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex flex-col items-center"
+                  >
+                    <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center mb-6 shadow-[0_0_40px_-5px_rgba(16,185,129,0.6)]">
+                      <Check className="w-10 h-10 text-black stroke-[3]" />
+                    </div>
+                    <h2 className="text-3xl font-bold mb-4">Request Created!</h2>
+                    <p className="text-zinc-400 mb-8 max-w-sm">Your payment request for {formData.amount} USDC is live on Arc Testnet.</p>
+                    
+                    <div className="bg-black p-4 rounded-2xl border border-emerald-500/20 mb-8">
+                      <QRCodeSVG 
+                        value={paymentUrl} 
+                        size={180}
+                        level="H"
+                        includeMargin={true}
+                        bgColor="#000000"
+                        fgColor="#10b981"
+                      />
+                    </div>
+
+                    <button 
+                      onClick={copyToClipboard}
+                      className="flex items-center gap-2 text-emerald-500 font-bold hover:text-emerald-400 transition-colors"
+                    >
+                      {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                      {copied ? 'Copied Link' : 'Copy Payment Link'}
+                    </button>
+                    
+                    <div className="mt-10 flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                      <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">Waiting for payment...</span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <div className="space-y-6">
+               <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-8">
+                  <h3 className="font-bold mb-6 flex items-center gap-2">
+                    <QrCode className="w-5 h-5 text-zinc-500" />
+                    How it works
+                  </h3>
+                  <ul className="space-y-4">
+                    {[
+                      'Share the link or QR code with your customer.',
+                      'Customer connects their wallet and pays in USDC.',
+                      'Payment is settled instantly on Arc Testnet.',
+                      'View transaction history in your dashboard.'
+                    ].map((step, i) => (
+                      <li key={i} className="flex gap-4 text-sm text-zinc-400">
+                        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-white/5 flex items-center justify-center text-zinc-500 font-bold text-xs">
+                          {i + 1}
+                        </span>
+                        {step}
+                      </li>
+                    ))}
+                  </ul>
+               </div>
+
+               <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-8">
+                  <h3 className="font-bold mb-6 flex items-center gap-2">
+                    <LinkIcon className="w-5 h-5 text-zinc-500" />
+                    Payment Details
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-500">Product</span>
+                      <span className="font-medium">{formData.productName}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-500">Amount</span>
+                      <span className="font-medium text-emerald-500">{formData.amount} USDC</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-500">Status</span>
+                      <span className="flex items-center gap-1.5 font-medium text-blue-500">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                        Pending
+                      </span>
+                    </div>
+                  </div>
+               </div>
+
+               <div className="flex gap-4">
+                 <button 
+                   onClick={() => setStep(1)}
+                   className="flex-1 bg-white/5 border border-white/10 text-white font-bold py-4 rounded-2xl hover:bg-white/10 transition-all"
+                 >
+                   Create Another
+                 </button>
+                 <Link 
+                   href="/dashboard"
+                   className="flex-1 bg-emerald-500 text-black font-bold py-4 rounded-2xl hover:bg-emerald-400 transition-all text-center"
+                 >
+                   View Dashboard
+                 </Link>
+               </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
