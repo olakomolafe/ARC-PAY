@@ -51,7 +51,8 @@ export default function DashboardPage() {
         .select('amount')
         .eq('receiver_address', address);
       
-      const total = txs?.reduce((acc, curr) => acc + curr.amount, 0) || 0;
+      // @ts-ignore
+      const total = txs?.reduce((acc: any, curr: any) => acc + curr.amount, 0) || 0;
 
       const { count: pending } = await supabase
         .from('payment_requests')
@@ -119,7 +120,6 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-10">
-      {/* Welcome Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Merchant Overview</h1>
@@ -127,14 +127,13 @@ export default function DashboardPage() {
         </div>
         <Link 
           href="/dashboard/create"
-          className="bg-emerald-500 text-black font-bold px-6 py-3 rounded-xl hover:bg-emerald-400 transition-all flex items-center gap-2 shadow-[0_0_20px_-5px_rgba(16,185,129,0.4)]"
+          className="bg-emerald-500 text-black font-bold px-6 py-3 rounded-xl hover:bg-emerald-400 transition-all flex items-center gap-2"
         >
           <Plus className="w-4 h-4" />
           Create New Request
         </Link>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
           { label: 'Total Received', value: `${stats.totalReceived} USDC`, icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
@@ -142,25 +141,20 @@ export default function DashboardPage() {
           { label: 'Active Links', value: stats.activeLinks, icon: Clock, color: 'text-purple-500', bg: 'bg-purple-500/10' },
           { label: 'Pending Payouts', value: stats.pendingRequests, icon: ArrowUpRight, color: 'text-amber-500', bg: 'bg-amber-500/10' },
         ].map((stat, i) => (
-          <motion.div 
+          <div 
             key={i}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
             className="bg-zinc-900/30 border border-white/5 rounded-3xl p-6 group hover:border-white/10 transition-colors"
           >
-            <div className={`${stat.bg} ${stat.color} w-10 h-10 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+            <div className={`${stat.bg} ${stat.color} w-10 h-10 rounded-xl flex items-center justify-center mb-4`}>
               <stat.icon className="w-5 h-5" />
             </div>
             <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1">{stat.label}</p>
             <h3 className="text-2xl font-bold">{stat.value}</h3>
-          </motion.div>
+          </div>
         ))}
       </div>
 
-      {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Recent Transactions */}
         <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold flex items-center gap-2">
@@ -178,16 +172,12 @@ export default function DashboardPage() {
               </div>
             ) : recentTxs.length === 0 ? (
               <div className="py-20 flex flex-col items-center justify-center text-center px-6">
-                <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center mb-4">
-                  <ArrowDownLeft className="w-6 h-6 text-zinc-700" />
-                </div>
                 <p className="text-zinc-500 font-medium">No transactions yet</p>
-                <p className="text-zinc-600 text-sm mt-1">Create a link and start receiving USDC!</p>
               </div>
             ) : (
               <div className="divide-y divide-white/5">
                 {recentTxs.map((tx) => (
-                  <div key={tx.id} className="p-5 flex items-center justify-between hover:bg-white/[0.02] transition-colors group">
+                  <div key={tx.id} className="p-5 flex items-center justify-between hover:bg-white/[0.02] transition-colors">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">
                         <ArrowDownLeft className="w-5 h-5" />
@@ -199,42 +189,12 @@ export default function DashboardPage() {
                     </div>
                     <div className="text-right">
                       <p className="font-bold text-emerald-500 text-sm">+{tx.amount} USDC</p>
-                      <a 
-                        href={`https://testnet.arcscan.app/tx/${tx.tx_hash}`} 
-                        target="_blank" 
-                        className="text-[10px] text-zinc-500 hover:text-white flex items-center justify-end gap-1 mt-1 uppercase tracking-tighter"
-                      >
-                        View on Scan
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
+                      <a href={`https://testnet.arcscan.app/tx/${tx.tx_hash}`} target="_blank" className="text-[10px] text-zinc-500 hover:text-white">View Scan</a>
                     </div>
                   </div>
                 ))}
               </div>
             )}
-          </div>
-        </div>
-
-        {/* Support/Info Sidebar */}
-        <div className="space-y-6">
-          <h2 className="text-xl font-bold">Network Status</h2>
-          <div className="bg-zinc-900/30 border border-white/5 rounded-3xl p-6 space-y-6">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-zinc-400">Network</span>
-              <span className="flex items-center gap-2 text-sm font-bold text-emerald-500">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                Arc Testnet
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-zinc-400">USDC Status</span>
-              <span className="text-sm font-bold text-white">Active</span>
-            </div>
-            <div className="pt-4 border-t border-white/5">
-              <p className="text-xs text-zinc-500 leading-relaxed italic">
-                Currently running on Arc Testnet. All transactions are simulation-only and do not involve real-world assets.
-              </p>
-            </div>
           </div>
         </div>
       </div>
