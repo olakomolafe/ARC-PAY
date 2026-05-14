@@ -19,8 +19,9 @@ import { useAccount, useBalance, useWriteContract, useWaitForTransactionReceipt 
 import { formatUnits, parseUnits, erc20Abi } from 'viem';
 import { supabase } from '@/lib/supabase';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { USDC_ADDRESS } from '@/lib/web3';
 
-const USDC_ADDRESS = '0x170aBCcca8976Ea643501a40348700244747B576' as `0x${string}`;
+const ARCPAY_CONTRACT = '0x0000000000000000000000000000000000000000'; 
 
 export default function CheckoutPage() {
   const { id } = useParams();
