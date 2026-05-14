@@ -1,6 +1,6 @@
 import { arcTestnet as arcChain } from 'viem/chains';
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { http, fallback } from 'wagmi';
+import { http, fallback, getAddress } from 'viem';
 
 export const arcTestnet = arcChain;
 
@@ -17,5 +17,6 @@ export const config = getDefaultConfig({
   }
 });
 
-export const USDC_ADDRESS = '0x170abccca8976ea643501a40348700244747b576' as `0x${string}`;
+// Using getAddress forces the correct checksum format so wallets don't error out
+export const USDC_ADDRESS = getAddress('0x170abccca8976ea643501a40348700244747b576');
 export const USDC_DECIMALS = 6;
