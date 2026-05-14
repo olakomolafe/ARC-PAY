@@ -67,4 +67,4 @@ This project is licensed under the MIT License.
 
 ---
 
-Built with ⚡ by [Your Name] for the Arc ecosystem.
+Built with ⚡ by Olamipo for the Arc ecosystem.
