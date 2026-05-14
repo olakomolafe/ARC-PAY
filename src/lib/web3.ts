@@ -17,5 +17,5 @@ export const config = getDefaultConfig({
   }
 });
 
-export const USDC_ADDRESS = '0x3600000000000000000000000000000000000000';
+export const USDC_ADDRESS = '0x170abccca8976ea643501a40348700244747b576' as `0x${string}`;
 export const USDC_DECIMALS = 6;
